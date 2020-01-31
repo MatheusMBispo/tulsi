@@ -19,7 +19,6 @@ import Foundation
 // BazelPBXReferencePatcher to any files that can't be found. As a backup, paths are set to be
 // relative to the Bazel exec root for non-generated files.
 final class BazelXcodeProjectPatcher {
-
   // FileManager used to check for presence of PBXFileReferences when patching.
   let fileManager: FileManager
 
@@ -28,7 +27,7 @@ final class BazelXcodeProjectPatcher {
 
   init(fileManager: FileManager) {
     self.fileManager = fileManager
-    self.fileReferencePatcher = BazelPBXReferencePatcher(fileManager: fileManager)
+    fileReferencePatcher = BazelPBXReferencePatcher(fileManager: fileManager)
   }
 
   // Resolves the given Bazel exec-root relative path to a filesystem path.
@@ -40,7 +39,7 @@ final class BazelXcodeProjectPatcher {
 
   // Rewrites the path for file references that it believes to be relative to Bazel's exec root.
   // This should be called before patching external references.
-  private func patchFileReference(file: PBXFileReference, url: URL, workspaceRootURL: URL) {
+  private func patchFileReference(file: PBXFileReference, url: URL, workspaceRootURL _: URL) {
     // We only want to modify the path if the current path doesn't point to a valid file.
     guard !fileManager.fileExists(atPath: url.path) else { return }
 
@@ -57,29 +56,29 @@ final class BazelXcodeProjectPatcher {
     // trigger Xcode into an endless loop of
     //     "You don’t have permission to save the file “Contents.json” in the folder <X>."
     // This is present in Xcode 8.3.3 and Xcode 9b2.
-    guard !url.path.hasSuffix(".xcassets") else {
-      if let parent = file.parent as? PBXGroup {
-        parent.removeChild(file)
-      }
-      return
-    }
+    // guard !url.path.hasSuffix(".xcassets") else {
+    //   if let parent = file.parent as? PBXGroup {
+    //     parent.removeChild(file)
+    //   }
+    //   return
+    // }
 
     // Default to be relative to the bazel exec root if the FileReferencePatcher doesn't handle the
     // patch. This is for both source files as well as generated files (which always need to be
     // relative to the bazel exec root).
-    if !fileReferencePatcher.patchNonPresentFileReference(file: file,
-                                                          url: url,
-                                                          workspaceRootURL: workspaceRootURL) {
-      file.path = resolvePathFromBazelExecRoot(file.path!)
-    }
+    // if !fileReferencePatcher.patchNonPresentFileReference(file: file,
+    //                                                       url: url,
+    //                                                       workspaceRootURL: workspaceRootURL) {
+    //   file.path = resolvePathFromBazelExecRoot(file.path!)
+    // }
   }
 
   // Handles patching PBXFileReferences that are not present on disk. This should be called before
   // calling patchExternalRepositoryReferences.
   func patchBazelRelativeReferences(_ xcodeProject: PBXProject,
-                                    _ workspaceRootURL : URL) {
+                                    _ workspaceRootURL: URL) {
     // Exclude external references that have yet to be patched in.
-    var queue = xcodeProject.mainGroup.children.filter{ $0.name != "external" }
+    var queue = xcodeProject.mainGroup.children.filter { $0.name != "external" }
 
     while !queue.isEmpty {
       let ref = queue.remove(at: 0)
@@ -87,8 +86,8 @@ final class BazelXcodeProjectPatcher {
         // Queue up all children of the group so we can find all of their FileReferences.
         queue.append(contentsOf: group.children)
       } else if let file = ref as? PBXFileReference,
-                let fileURL = URL(string: file.path!, relativeTo: workspaceRootURL) {
-        self.patchFileReference(file: file, url: fileURL, workspaceRootURL: workspaceRootURL)
+        let fileURL = URL(string: file.path!, relativeTo: workspaceRootURL) {
+        patchFileReference(file: file, url: fileURL, workspaceRootURL: workspaceRootURL)
       }
     }
   }

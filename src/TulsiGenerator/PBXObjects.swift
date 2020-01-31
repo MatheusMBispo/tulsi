@@ -19,7 +19,6 @@ import Foundation
 // Xcode versions can parse properly formatted old file versions).
 let XcodeVersionInfo = (objectVersion: "46", compatibilityVersion: "Xcode 3.2")
 
-
 /// Valid values for the sourceTree field on PBXReference-derived classes. These values correspond to
 /// the "Location" selector in Xcode's File Inspector and indicate how the path field in the
 /// PBXReference should be handled.
@@ -60,7 +59,6 @@ func == (lhs: SourceTreePath, rhs: SourceTreePath) -> Bool {
   return (lhs.sourceTree == rhs.sourceTree) && (lhs.path == rhs.path)
 }
 
-
 /// Protocol for all serializable project objects.
 protocol PBXObjectProtocol: PBXProjSerializable, CustomDebugStringConvertible {
   /// Provides a string identifying this object's type.
@@ -74,16 +72,15 @@ protocol PBXObjectProtocol: PBXProjSerializable, CustomDebugStringConvertible {
 
 extension PBXObjectProtocol {
   var debugDescription: String {
-    return "\(type(of: self)) \(String(describing: self.comment))"
+    return "\(type(of: self)) \(String(describing: comment))"
   }
 }
-
 
 /// Models a collection of build settings.
 final class XCBuildConfiguration: PBXObjectProtocol {
   var globalID: String = ""
   let name: String
-  var buildSettings = [String:String]()
+  var buildSettings = [String: String]()
   var baseConfigurationReference: PBXFileReference?
 
   var isa: String {
@@ -91,7 +88,7 @@ final class XCBuildConfiguration: PBXObjectProtocol {
   }
 
   lazy var hashValue: Int = { [unowned self] in
-    return self.name.hashValue
+    self.name.hashValue
   }()
 
   var comment: String? {
@@ -109,7 +106,6 @@ final class XCBuildConfiguration: PBXObjectProtocol {
   }
 }
 
-
 /// Internal base class for file references and groups.
 class PBXReference: PBXObjectProtocol {
   var globalID: String = ""
@@ -123,7 +119,7 @@ class PBXReference: PBXObjectProtocol {
   }
 
   lazy var hashValue: Int = { [unowned self] in
-    return self.name.hashValue &+ (self.path?.hashValue ?? 0)
+    self.name.hashValue &+ (self.path?.hashValue ?? 0)
   }()
 
   var comment: String? {
@@ -143,13 +139,14 @@ class PBXReference: PBXObjectProtocol {
   weak var parent: PBXReference? {
     return _parent
   }
+
   fileprivate weak var _parent: PBXReference?
 
   init(name: String, path: String?, sourceTree: SourceTree, parent: PBXReference? = nil) {
-    self.name = name;
+    self.name = name
     self.path = path
     self.sourceTree = sourceTree
-    self._parent = parent
+    _parent = parent
   }
 
   convenience init(name: String, sourceTreePath: SourceTreePath, parent: PBXReference? = nil) {
@@ -166,7 +163,6 @@ class PBXReference: PBXObjectProtocol {
   }
 }
 
-
 /// PBXFileReference instances are used to track each file in the project.
 final class PBXFileReference: PBXReference, Hashable {
   // A PBXFileReference for an input will have lastKnownFileType set to the file's UTI. An output
@@ -178,6 +174,7 @@ final class PBXFileReference: PBXReference, Hashable {
     }
     return nil
   }
+
   var lastKnownFileType: String? {
     if isInputFile {
       return fileType ?? "text"
@@ -199,11 +196,12 @@ final class PBXFileReference: PBXReference, Hashable {
     if fileTypeOverride != nil {
       return fileTypeOverride
     }
-    return self._pbPathUTI
+    return _pbPathUTI
   }
+
   // memoized copy of the (expensive) pbPathUTI for this PBXFileReference's name.
   private lazy var _pbPathUTI: String? = { [unowned self] in
-    return self.name.pbPathUTI
+    self.name.pbPathUTI
   }()
 
   /// Returns the path to this file reference relative to the source root group.
@@ -211,7 +209,7 @@ final class PBXFileReference: PBXReference, Hashable {
   var sourceRootRelativePath: String {
     var parentHierarchy = [path!]
     var group = parent
-    while (group != nil && group!.path != nil) {
+    while group != nil, group!.path != nil {
       parentHierarchy.append(group!.path!)
       group = group!.parent
     }
@@ -219,7 +217,6 @@ final class PBXFileReference: PBXReference, Hashable {
     let fullPath = parentHierarchy.reversed().joined(separator: "/")
     return fullPath
   }
-
 
   init(name: String, path: String?, sourceTree: SourceTree, parent: PBXGroup?) {
     super.init(name: name, path: path, sourceTree: sourceTree, parent: parent)
@@ -241,12 +238,11 @@ final class PBXFileReference: PBXReference, Hashable {
 
 func == (lhs: PBXFileReference, rhs: PBXFileReference) -> Bool {
   return lhs.isInputFile == rhs.isInputFile &&
-      lhs.fileType == rhs.fileType &&
-      lhs.sourceTree == rhs.sourceTree &&
-      lhs.name == rhs.name &&
-      lhs.path == rhs.path
+    lhs.fileType == rhs.fileType &&
+    lhs.sourceTree == rhs.sourceTree &&
+    lhs.name == rhs.name &&
+    lhs.path == rhs.path
 }
-
 
 /// PBXGroups are simple containers for other PBXReference instances.
 class PBXGroup: PBXReference, Hashable {
@@ -339,14 +335,14 @@ class PBXGroup: PBXReference, Hashable {
     let name = name ?? sourceTreePath.path.pbPathLastComponent
     let value = PBXFileReference(name: name,
                                  sourceTreePath: sourceTreePath,
-                                 parent:self)
+                                 parent: self)
     fileReferencesBySourceTreePath[sourceTreePath] = value
     children.append(value)
     return value
   }
 
   func removeChild(_ child: PBXReference) {
-    children = children.filter() { $0 !== child }
+    children = children.filter { $0 !== child }
     if child is XCVersionGroup {
       childVersionGroupsByName.removeValue(forKey: child.name)
     } else if child is PBXVariantGroup {
@@ -418,7 +414,7 @@ class PBXGroup: PBXReference, Hashable {
 
   override func serializeInto(_ serializer: PBXProjFieldSerializer) throws {
     try super.serializeInto(serializer)
-    try serializer.addField("children", children.sorted(by: {$0.name < $1.name}))
+    try serializer.addField("children", children.sorted(by: { $0.name < $1.name }))
   }
 }
 
@@ -427,10 +423,9 @@ func == (lhs: PBXGroup, rhs: PBXGroup) -> Bool {
   // identical paths but different contents. For this to be reusable, everything should really be
   // made Hashable and the children should be compared as well.
   return lhs.name == rhs.name &&
-      lhs.isa == rhs.isa &&
-      lhs.path == rhs.path
+    lhs.isa == rhs.isa &&
+    lhs.path == rhs.path
 }
-
 
 /// Models a localized resource group.
 class PBXVariantGroup: PBXGroup {
@@ -439,11 +434,10 @@ class PBXVariantGroup: PBXGroup {
   }
 }
 
-
 /// Models a versioned group (e.g., a Core Data xcdatamodeld).
 final class XCVersionGroup: PBXGroup {
   /// The active child reference.
-  var currentVersion: PBXReference? = nil
+  var currentVersion: PBXReference?
   var versionGroupType: String = ""
 
   override var isa: String {
@@ -454,7 +448,7 @@ final class XCVersionGroup: PBXGroup {
        path: String?,
        sourceTree: SourceTree,
        parent: PBXGroup?,
-       versionGroupType: String = "") {
+       versionGroupType _: String = "") {
     super.init(name: name, path: path, sourceTree: sourceTree, parent: parent)
   }
 
@@ -490,29 +484,28 @@ final class XCVersionGroup: PBXGroup {
   }
 }
 
-
 /// Models the set of XCBuildConfiguration instances for a given target or project.
 final class XCConfigurationList: PBXObjectProtocol {
   var globalID: String = ""
   var buildConfigurations = [String: XCBuildConfiguration]()
   var defaultConfigurationIsVisible = false
-  var defaultConfigurationName: String? = nil
+  var defaultConfigurationName: String?
 
   var isa: String {
     return "XCConfigurationList"
   }
 
   lazy var hashValue: Int = { [unowned self] in
-    return self.comment?.hashValue ?? 0
+    self.comment?.hashValue ?? 0
   }()
 
   let comment: String?
 
   init(forType: String? = nil, named: String? = nil) {
     if let ownerType = forType, let name = named {
-      self.comment = "Build configuration list for \(ownerType) \"\(name)\""
+      comment = "Build configuration list for \(ownerType) \"\(name)\""
     } else {
-      self.comment = nil
+      comment = nil
     }
   }
 
@@ -530,7 +523,7 @@ final class XCConfigurationList: PBXObjectProtocol {
   }
 
   func serializeInto(_ serializer: PBXProjFieldSerializer) throws {
-    try serializer.addField("buildConfigurations", buildConfigurations.values.sorted(by: {$0.name < $1.name}))
+    try serializer.addField("buildConfigurations", buildConfigurations.values.sorted(by: { $0.name < $1.name }))
     try serializer.addField("defaultConfigurationIsVisible", defaultConfigurationIsVisible)
     if let defaultConfigurationName = defaultConfigurationName {
       try serializer.addField("defaultConfigurationName", defaultConfigurationName)
@@ -538,10 +531,9 @@ final class XCConfigurationList: PBXObjectProtocol {
   }
 }
 
-
 /// Internal base class for concrete build phases (each of which capture a set of files that will be
 /// used as inputs to that phase).
-class PBXBuildPhase: PBXObjectProtocol  {
+class PBXBuildPhase: PBXObjectProtocol {
   // Used to identify different phases of the same type (i.e. isa).
   var mnemonic: String = ""
   var globalID: String = ""
@@ -576,9 +568,8 @@ class PBXBuildPhase: PBXObjectProtocol  {
   }
 }
 
-
 /// Encapsulates a source file compilation phase.
-final class PBXSourcesBuildPhase: PBXBuildPhase  {
+final class PBXSourcesBuildPhase: PBXBuildPhase {
   override var isa: String {
     return "PBXSourcesBuildPhase"
   }
@@ -594,10 +585,9 @@ final class PBXSourcesBuildPhase: PBXBuildPhase  {
   override init(buildActionMask: Int = 0, runOnlyForDeploymentPostprocessing: Bool = false) {
     super.init(buildActionMask: buildActionMask,
                runOnlyForDeploymentPostprocessing: runOnlyForDeploymentPostprocessing)
-    self.mnemonic = "CompileSources"
+    mnemonic = "CompileSources"
   }
 }
-
 
 /// Encapsulates a shell script execution phase.
 final class PBXShellScriptBuildPhase: PBXBuildPhase {
@@ -628,7 +618,7 @@ final class PBXShellScriptBuildPhase: PBXBuildPhase {
     self.shellPath = shellPath
     self.inputPaths = inputPaths
     self.outputPaths = outputPaths
-    self._hashValue = shellPath.hashValue &+ shellScript.hashValue
+    _hashValue = shellPath.hashValue &+ shellScript.hashValue
 
     super.init(buildActionMask: buildActionMask,
                runOnlyForDeploymentPostprocessing: runOnlyForDeploymentPostprocessing)
@@ -643,7 +633,6 @@ final class PBXShellScriptBuildPhase: PBXBuildPhase {
     try serializer.addField("showEnvVarsInLog", showEnvVarsInLog)
   }
 }
-
 
 /// File reference with associated build flags (set in Xcode via the Compile Sources phase). This
 /// extra level of indirection allows any given PBXReference to be included in multiple targets
@@ -688,7 +677,6 @@ final class PBXBuildFile: PBXObjectProtocol {
   }
 }
 
-
 /// Base class for concrete build targets.
 class PBXTarget: PBXObjectProtocol, Hashable {
   enum ProductType: String {
@@ -721,7 +709,7 @@ class PBXTarget: PBXObjectProtocol, Hashable {
     /// Whether or not this ProductType is an iOS app extension or variant.
     var isiOSAppExtension: Bool {
       return self == .AppExtension || self == .MessagesExtension
-          || self == .MessagesStickerPackExtension
+        || self == .MessagesStickerPackExtension
     }
 
     /// Whether or not this ProductType denotes a test bundle.
@@ -738,123 +726,123 @@ class PBXTarget: PBXObjectProtocol, Hashable {
     /// is not a WatchApp type).
     var watchAppExtensionType: ProductType? {
       switch self {
-        case .Watch1App:
-          return .Watch1Extension
-        case .Watch2App:
-          return .Watch2Extension
-        default:
-          return nil
+      case .Watch1App:
+        return .Watch1Extension
+      case .Watch2App:
+        return .Watch2Extension
+      default:
+        return nil
       }
     }
 
     var explicitFileType: String {
       switch self {
-        case .StaticLibrary:
-          return "archive.ar"
+      case .StaticLibrary:
+        return "archive.ar"
 
-        case .DynamicLibrary:
-          return "compiled.mach-o.dylib"
+      case .DynamicLibrary:
+        return "compiled.mach-o.dylib"
 
-        case .Tool:
-          return "compiled.mach-o.executable"
+      case .Tool:
+        return "compiled.mach-o.executable"
 
-        case .Bundle:
-          return "wrapper.bundle"
+      case .Bundle:
+        return "wrapper.bundle"
 
-        case .Framework:
-          return "wrapper.framework"
+      case .Framework:
+        return "wrapper.framework"
 
-        case .StaticFramework:
-          return "wrapper.framework.static"
+      case .StaticFramework:
+        return "wrapper.framework.static"
 
-        case .Watch1App:
-          fallthrough
-        case .Watch2App:
-          fallthrough
-        case .MessagesApplication:
-          fallthrough
-        case .Application:
-          return "wrapper.application"
+      case .Watch1App:
+        fallthrough
+      case .Watch2App:
+        fallthrough
+      case .MessagesApplication:
+        fallthrough
+      case .Application:
+        return "wrapper.application"
 
-        case .UnitTest:
-          fallthrough
-        case .UIUnitTest:
-          return "wrapper.cfbundle"
+      case .UnitTest:
+        fallthrough
+      case .UIUnitTest:
+        return "wrapper.cfbundle"
 
-        case .InAppPurchaseContent:
-          return "folder"
+      case .InAppPurchaseContent:
+        return "folder"
 
-        case .Watch1Extension:
-          fallthrough
-        case .Watch2Extension:
-          fallthrough
-        case .TVAppExtension:
-          fallthrough
-        case .MessagesExtension:
-          fallthrough
-        case .MessagesStickerPackExtension:
-          fallthrough
-        case .AppExtension:
-          return "wrapper.app-extension"
+      case .Watch1Extension:
+        fallthrough
+      case .Watch2Extension:
+        fallthrough
+      case .TVAppExtension:
+        fallthrough
+      case .MessagesExtension:
+        fallthrough
+      case .MessagesStickerPackExtension:
+        fallthrough
+      case .AppExtension:
+        return "wrapper.app-extension"
 
-        case .XPCService:
-          return "wrapper.xpc-service"
+      case .XPCService:
+        return "wrapper.xpc-service"
       }
     }
 
     func productName(_ name: String) -> String {
       switch self {
-        case .StaticLibrary:
-          return "lib\(name).a"
+      case .StaticLibrary:
+        return "lib\(name).a"
 
-        case .DynamicLibrary:
-          return "lib\(name).dylib"
+      case .DynamicLibrary:
+        return "lib\(name).dylib"
 
-        case .Tool:
-          return name
+      case .Tool:
+        return name
 
-        case .Bundle:
-          return "\(name).bundle"
+      case .Bundle:
+        return "\(name).bundle"
 
-        case .Framework:
-          return "\(name).framework"
+      case .Framework:
+        return "\(name).framework"
 
-        case .StaticFramework:
-          return "\(name).framework"
+      case .StaticFramework:
+        return "\(name).framework"
 
-        case .Watch2App:
-          fallthrough
-        case .MessagesApplication:
-          fallthrough
-        case .Application:
-          return "\(name).app"
+      case .Watch2App:
+        fallthrough
+      case .MessagesApplication:
+        fallthrough
+      case .Application:
+        return "\(name).app"
 
-        case .UnitTest:
-          fallthrough
-        case .UIUnitTest:
-          return "\(name).xctest"
+      case .UnitTest:
+        fallthrough
+      case .UIUnitTest:
+        return "\(name).xctest"
 
-        case .InAppPurchaseContent:
-          return name
+      case .InAppPurchaseContent:
+        return name
 
-        case .Watch1App:
-          // watchOS1 apps are packaged as extensions.
-          fallthrough
-        case .Watch1Extension:
-          fallthrough
-        case .Watch2Extension:
-          fallthrough
-        case .TVAppExtension:
-          fallthrough
-        case .MessagesExtension:
-          fallthrough
-        case .MessagesStickerPackExtension:
-          fallthrough
-        case .AppExtension:
-          return "\(name).appex"
+      case .Watch1App:
+        // watchOS1 apps are packaged as extensions.
+        fallthrough
+      case .Watch1Extension:
+        fallthrough
+      case .Watch2Extension:
+        fallthrough
+      case .TVAppExtension:
+        fallthrough
+      case .MessagesExtension:
+        fallthrough
+      case .MessagesStickerPackExtension:
+        fallthrough
+      case .AppExtension:
+        return "\(name).appex"
 
-        case .XPCService:
-          return "\(name).xpc"
+      case .XPCService:
+        return "\(name).xpc"
       }
     }
   }
@@ -868,6 +856,7 @@ class PBXTarget: PBXObjectProtocol, Hashable {
   lazy var buildConfigurationList: XCConfigurationList = { [unowned self] in
     XCConfigurationList(forType: self.isa, named: self.name)
   }()
+
   /// The targets on which this target depends.
   var dependencies = [PBXTargetDependency]()
   /// Any targets which must be built by XCSchemes generated for this target.
@@ -883,7 +872,7 @@ class PBXTarget: PBXObjectProtocol, Hashable {
   }
 
   lazy var hashValue: Int = { [unowned self] in
-    return self.name.hashValue &+ (self.comment?.hashValue ?? 0)
+    self.name.hashValue &+ (self.comment?.hashValue ?? 0)
   }()
 
   var comment: String? {
@@ -933,7 +922,6 @@ func == (lhs: PBXTarget, rhs: PBXTarget) -> Bool {
   return lhs.name == rhs.name
 }
 
-
 /// Models a target that produces a binary.
 final class PBXNativeTarget: PBXTarget {
   let productType: ProductType
@@ -963,7 +951,6 @@ final class PBXNativeTarget: PBXTarget {
   }
 }
 
-
 /// Models a target that executes an arbitrary binary.
 final class PBXLegacyTarget: PBXTarget {
   let buildArgumentsString: String
@@ -981,7 +968,7 @@ final class PBXLegacyTarget: PBXTarget {
        buildArguments: String,
        buildWorkingDirectory: String) {
     self.buildToolPath = buildToolPath
-    self.buildArgumentsString = buildArguments
+    buildArgumentsString = buildArguments
     self.buildWorkingDirectory = buildWorkingDirectory
     super.init(name: name, deploymentTarget: deploymentTarget)
   }
@@ -994,7 +981,6 @@ final class PBXLegacyTarget: PBXTarget {
     try serializer.addField("passBuildSettingsInEnvironment", passBuildSettingsInEnvironment)
   }
 }
-
 
 /// Models a link to a target or output file which may be in a different project.
 final class PBXContainerItemProxy: PBXObjectProtocol, Hashable {
@@ -1014,12 +1000,14 @@ final class PBXContainerItemProxy: PBXObjectProtocol, Hashable {
   var containerPortal: PBXProject {
     return _ContainerPortal!
   }
+
   private weak var _ContainerPortal: PBXProject?
 
   /// The target being tracked by this proxy.
   var target: PBXObjectProtocol {
     return _target!
   }
+
   fileprivate weak var _target: PBXObjectProtocol?
 
   let proxyType: ProxyType
@@ -1037,8 +1025,8 @@ final class PBXContainerItemProxy: PBXObjectProtocol, Hashable {
   }
 
   init(containerPortal: PBXProject, target: PBXObjectProtocol, proxyType: ProxyType) {
-    self._ContainerPortal = containerPortal
-    self._target = target
+    _ContainerPortal = containerPortal
+    _target = target
     self.proxyType = proxyType
   }
 
@@ -1053,13 +1041,12 @@ func == (lhs: PBXContainerItemProxy, rhs: PBXContainerItemProxy) -> Bool {
   if lhs.proxyType != rhs.proxyType { return false }
 
   switch lhs.proxyType {
-    case .targetReference:
-      return lhs._target as? PBXTarget == rhs._target as? PBXTarget
-    case .fileReference:
-      return lhs._target as? PBXFileReference == rhs._target as? PBXFileReference
+  case .targetReference:
+    return lhs._target as? PBXTarget == rhs._target as? PBXTarget
+  case .fileReference:
+    return lhs._target as? PBXFileReference == rhs._target as? PBXFileReference
   }
 }
-
 
 /// Models a dependent relationship between a build target and some other build target.
 final class PBXTargetDependency: PBXObjectProtocol {
@@ -1088,7 +1075,6 @@ final class PBXTargetDependency: PBXObjectProtocol {
   }
 }
 
-
 /// Models a project container.
 final class PBXProject: PBXObjectProtocol {
   // Name of the group in which target file references are stored.
@@ -1114,7 +1100,7 @@ final class PBXProject: PBXObjectProtocol {
   let lastUpgradeCheck = "1000"
   /// May be set to an Xcode version string indicating the last time a Swift upgrade check was
   /// performed (e.g., 0710).
-  var lastSwiftUpdateCheck: String? = nil
+  var lastSwiftUpdateCheck: String?
 
   /// List of (testTarget, hostTarget) pairs linking test targets to their host applications.
   var testTargetLinkages = [(PBXTarget, PBXTarget)]()
@@ -1201,17 +1187,17 @@ final class PBXProject: PBXObjectProtocol {
   func linkTestTarget(_ testTarget: PBXTarget, toHostTarget hostTarget: PBXTarget) {
     testTargetLinkages.append((testTarget, hostTarget))
     testTarget.createDependencyOn(hostTarget,
-                                  proxyType:PBXContainerItemProxy.ProxyType.targetReference,
+                                  proxyType: PBXContainerItemProxy.ProxyType.targetReference,
                                   inProject: self)
   }
 
   func linkedTestTargetsForHost(_ host: PBXTarget) -> [PBXTarget] {
-    let targetHostPairs = testTargetLinkages.filter() {
-      (testTarget: PBXTarget, testHostTarget: PBXTarget) -> Bool in
-        testHostTarget == host
+    let targetHostPairs = testTargetLinkages.filter {
+      (_: PBXTarget, testHostTarget: PBXTarget) -> Bool in
+      testHostTarget == host
     }
 
-    return targetHostPairs.map() { $0.0 }
+    return targetHostPairs.map { $0.0 }
   }
 
   func linkedHostForTestTarget(_ target: PBXTarget) -> PBXTarget? {
@@ -1303,8 +1289,8 @@ final class PBXProject: PBXObjectProtocol {
     try serializer.addField("attributes", attributes)
     try serializer.addField("buildConfigurationList", buildConfigurationList)
     try serializer.addField("compatibilityVersion", compatibilityVersion)
-    try serializer.addField("mainGroup", mainGroup);
-    try serializer.addField("targets", targetByName.values.sorted(by: {$0.name < $1.name}));
+    try serializer.addField("mainGroup", mainGroup)
+    try serializer.addField("targets", targetByName.values.sorted(by: { $0.name < $1.name }))
 
     // Hardcoded defaults to match Xcode behavior.
     try serializer.addField("developmentRegion", "English")
@@ -1336,7 +1322,7 @@ final class PBXProject: PBXObjectProtocol {
         accessedGroups.insert(variantGroup)
 
         let fileRef = variantGroup.getOrCreateFileReferenceBySourceTree(.Group,
-                                                                        path: path,
+                                                                        path: currentComponent,
                                                                         name: lprojName)
         if let ext = name.pbPathExtension, let uti = DirExtensionToUTI[ext] {
           fileRef.fileTypeOverride = uti
@@ -1346,8 +1332,8 @@ final class PBXProject: PBXObjectProtocol {
 
       // This will naively create a bundle grouping rather than including the per-locale strings.
       if let ext = currentComponent.pbPathExtension, let uti = DirExtensionToUTI[ext] {
-        let partialPath = components[0...i].joined(separator: "/")
-        let fileRef = group.getOrCreateFileReferenceBySourceTree(.Group, path: partialPath)
+        let partialPath = components[0 ... i].joined(separator: "/")
+        let fileRef = group.getOrCreateFileReferenceBySourceTree(.Group, path: currentComponent)
         fileRef.fileTypeOverride = uti
 
         // Contents of bundles should never be referenced directly so this path
@@ -1357,11 +1343,11 @@ final class PBXProject: PBXObjectProtocol {
 
       // Create a subgroup for this simple path component.
       let groupName = currentComponent.isEmpty ? "/" : currentComponent
-      group = group.getOrCreateChildGroupByName(groupName, path: nil)
+      group = group.getOrCreateChildGroupByName(groupName, path: currentComponent)
       accessedGroups.insert(group)
     }
 
-    let fileRef = group.getOrCreateFileReferenceBySourceTree(.Group, path: path)
+    let fileRef = group.getOrCreateFileReferenceBySourceTree(.Group, path: components.last!)
     return (accessedGroups, fileRef)
   }
 }
